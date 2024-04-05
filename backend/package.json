@@ -12,6 +12,7 @@
   "dependencies": {
     "axios": "^0.27.2",
     "cors": "^2.8.5",
+    "dash": "^3.25.22",
     "dotenv": "^16.0.0",
     "ethers": "^5.7.1",
     "express": "^4.17.3",

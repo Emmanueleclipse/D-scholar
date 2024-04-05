@@ -17,13 +17,13 @@ const root = ReactDOM.createRoot(
 );
 root.render(
   <Provider store={store}>
-    <EtherContextProvider>
+    {/* <EtherContextProvider> */}
       <ApiContextProvider>
           <ChakraProvider theme={theme}>
             <App />
           </ChakraProvider>
       </ApiContextProvider>
-    </EtherContextProvider>
+    {/* </EtherContextProvider> */}
   </Provider>
 );
 

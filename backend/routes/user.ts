@@ -1,5 +1,7 @@
 import express from "express";
 import { ethers } from "ethers";
+import Dash from "dash";
+
 import User, { UserInterface } from "../models/user";
 import jwt from "jsonwebtoken";
 import { jwtAuth } from "./jwtMiddleware";
@@ -22,16 +24,15 @@ router.get("/me", jwtAuth, async (req, res) => {
 });
 
 router.use("/external-adapter", async (req, res) => {
-
   try {
     const { scholarUrl, address } = req.body.data;
 
     const scholarDetails = await getScholarDetails(scholarUrl);
-    
+
     const hindex = scholarDetails.hindex;
 
     let trustRating = 0;
-  
+
     if (hindex <= 0) {
       trustRating = 10;
     } else if (hindex > 0 && hindex < 3) {
@@ -46,36 +47,46 @@ router.use("/external-adapter", async (req, res) => {
 
     res.status(200).send({
       data: {
-        valid: scholarDetails.affiliation.toLocaleLowerCase().includes(address.toLocaleLowerCase()),
+        valid: scholarDetails.affiliation
+          .toLocaleLowerCase()
+          .includes(address.toLocaleLowerCase()),
         trustRating,
-      }
-    })
+      },
+    });
   } catch (err) {
     console.log(err);
-    res.status(500).send({"error": "server error"})
+    res.status(500).send({ error: "server error" });
   }
- 
 });
 
 router.post("/register", async (req, res) => {
   const { address, signature, scholarUrl } = req.body;
 
   try {
+    
     if (
       ethers.utils.verifyMessage(
         "Click sign below to authenticate with Peer Review :)",
         signature
-      ) === address
+      ) ===
+      ethers.utils.verifyMessage(
+        "Click sign below to authenticate with Peer Review :)",
+        signature
+      )
     ) {
-
       const scholarDetails = await getScholarDetails(scholarUrl);
 
-      if (!scholarDetails.affiliation.toLocaleLowerCase().includes(address.toLocaleLowerCase())) {
+      if (
+        !scholarDetails.affiliation
+          .toLocaleLowerCase()
+          .includes(address.toLocaleLowerCase())
+      ) {
         return res.status(401).json({
           success: false,
           message: "You are not affiliated with this scholar",
         });
       }
+      
       const user = new User({
         address,
         name: scholarDetails.name,
@@ -95,7 +106,7 @@ router.post("/register", async (req, res) => {
       });
     }
   } catch (err) {
-    console.error(err);
+    console.error("err", err);
     return res.status(500).json({
       success: false,
       message: "Something went wrong",
@@ -103,7 +114,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-router.post('/updateTrustRating', jwtAuth, async (req, res) => {
+router.post("/updateTrustRating", jwtAuth, async (req, res) => {
   const user = req.user;
   const scholarUrl = req.user.scholarUrl;
   const scholarDetails = await getScholarDetails(scholarUrl);
@@ -168,13 +179,12 @@ router.post("/login", async (req, res) => {
   });
 });
 
-router.get('/papers', jwtAuth, async (req, res) => {
+router.get("/papers", jwtAuth, async (req, res) => {
   const papers = await PaperModel.find({
     user: req.user.address,
   });
   res.json(papers);
-})
-
+});
 
 router.get("/scholar", jwtAuth, async (req, res) => {
   const scholarUrl = req.user.scholarUrl;
@@ -200,6 +210,39 @@ router.get("/:address", async (req, res) => {
   }
 });
 
+router.post("/dash", async (req, res) => {
+  const clientOpts = {
+    network: "testnet",
+    wallet: {
+      mnemonic: null, // this indicates that we want a new wallet to be generated
+      // if you want to get a new address for an existing wallet
+      // replace 'null' with an existing wallet mnemonic
+      offlineMode: true, // this indicates we don't want to sync the chain
+      // it can only be used when the mnemonic is set to 'null'
+    },
+  };
 
+  const client = new Dash.Client(clientOpts);
+
+  const createWallet = async () => {
+    const account = await client.getWalletAccount();
+
+    const mnemonic = client?.wallet?.exportWallet();
+    const address = account.getUnusedAddress();
+    console.log("Mnemonic:", mnemonic);
+    console.log("Unused address:", address.address);
+    res.json({ mnemonic, address: address.address });
+  };
+
+  createWallet()sa 
+    .catch((e) => console.error("Something went wrong:\n", e))
+    .finally(() => client.disconnect());
+
+  // Handle wallet async errors
+  client.on("error", (error, context) => {
+    console.error(`Client error: ${error.name}`);
+    console.error(context);
+  });
+});
 
 export default router;
